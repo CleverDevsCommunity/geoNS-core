@@ -6,7 +6,7 @@ OUTPUT_DIR=./build
 OUTPUT_FILE=$(OUTPUT_DIR)/$(NAME)
 FILES=$(SRC_DIR)/main.c
 LIBS=$(wildcard ${SRC_DIR}/libs/**/*.c)
-FLAGS=-Ilibs -Iabstraction
+FLAGS=-Ilibs -Iabstraction $(shell pkg-config --libs --cflags sqlite3 openssl)
 
 
 clean:
