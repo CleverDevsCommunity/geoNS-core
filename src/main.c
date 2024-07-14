@@ -1,19 +1,18 @@
 #include <stdio.h>
-#include "libs/db/db.h"
+#include "libs/socket/socket.h"
 
 int main(int argc, char *argv[]) {
     printf("geoNS-Core is now running.\n");
 
-    init_io_system(argv[0]);
-
-    Database *ledger_db = db_open(LEDGER_DB);
-    Database *local_db = db_open(LOCAL_DB);
+    Socket *server = start_server_socket("127.0.0.1", NODE_GATEWAY_PORT);
+    printf("Server listening on %s:%d\n", server->server_addr, server->port);
+    handle_server_socket(server);
+    printf("Hello world!\n");
+    while (server->is_alive) {
+        sleep(10);
+        server->is_alive = 0;
+    }
+    kill_server(server);
     
-    db_connect(ledger_db);
-    db_connect(local_db);
-
-    db_disconnect(ledger_db);
-    db_disconnect(local_db);
-
     return 0;
 }

@@ -2,9 +2,11 @@
 #define GEONS_TYPE_H 1
 
 #include <sqlite3.h>
+#include <pthread.h>
 
 typedef unsigned short ushort;
 typedef unsigned char uchar;
 typedef unsigned long ulong;
+typedef pthread_t thread;
 
 #endif // !GEONS_TYPE_H

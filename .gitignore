@@ -54,5 +54,6 @@ dkms.conf
 # Custom
 bin/
 build/
+playground/
 .vscode/
 test.c

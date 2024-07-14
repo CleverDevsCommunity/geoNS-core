@@ -9,4 +9,8 @@
 // System constants
 #define SYS_MAX_PATH_LENGTH 1024
 
+// Socket constants
+#define NODE_GATEWAY_PORT 9060
+#define SOCKET_MAX_BUFFER_SIZE 1024
+
 #endif // !GEONS_CONSTANTS_H
