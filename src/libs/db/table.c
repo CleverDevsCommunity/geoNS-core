@@ -1,6 +1,6 @@
 #include "table.h"
 
-Table GEONS_DB_TABLES[3] = {
+Table GEONS_LEDGER_DB_TABLES[2] = {
     {"logs", "(\
         id INTEGER PRIMARY KEY AUTOINCREMENT,\
         region TEXT,\
@@ -18,7 +18,10 @@ Table GEONS_DB_TABLES[3] = {
         service_name TEXT UNIQUE,\
         service_url TEXT,\
         is_local NUMBER\
-    )"},
+    )"}
+};
+
+Table GEONS_LOCAL_DB_TABLES[1] = {
     {"settings", "(\
         id INTEGER PRIMARY KEY AUTOINCREMENT,\
         setting_key TEXT UNIQUE,\
@@ -39,70 +42,84 @@ Service GEONS_DEFAULT_SERVICES[9] = {
 };
 
 
-uchar is_geons_configured(sqlite3 *db) {
-    uchar *sql_query = (uchar *) malloc(MAX_SQL_QUERY_SIZE);
-    strncpy(sql_query, "SELECT * FROM settings WHERE setting_key = 'geons_config_status';", MAX_SQL_QUERY_SIZE);
+uchar is_geons_configured(Database *db) {
+    if (db->is_ledger)
+        return 1;
+
+    uchar *sql_query = "SELECT * FROM settings WHERE setting_key = 'geons_config_status';";
     sqlite3_stmt *stmt;
     
-    int rc = sqlite3_prepare_v2(db, sql_query, -1, &stmt, 0);
+    int rc = sqlite3_prepare_v2(db->sqlite_db, sql_query, -1, &stmt, 0);
     if (rc != SQLITE_OK) {
-        fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(db));
-        sqlite3_close(db);
+        fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(db->sqlite_db));
+        sqlite3_finalize(stmt);
+        db_disconnect(db);
     }
     
-    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+    if ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
         const uchar *value = sqlite3_column_text(stmt, 2);
+        sqlite3_finalize(stmt);
         return !strncmp(value, "true", strlen("true") + 1);
     }
+    
+    sqlite3_finalize(stmt);
     return 0;
 }
 
 
-void set_geons_settings_config_status(sqlite3 *db, uchar is_configured) {
+void set_geons_settings_config_status(Database *db, uchar is_configured) {
+    if (db->is_ledger)
+        return;
+        
     uchar *settings_table = "settings";
-    uchar *sql_query = (uchar *) malloc(MAX_SQL_QUERY_SIZE);
+    uchar sql_query[MAX_SQL_QUERY_SIZE];
     snprintf(sql_query, MAX_SQL_QUERY_SIZE, "INSERT INTO %s (setting_key, setting_value) VALUES ('geons_config_status', '%s');",
     settings_table, is_configured == 1 ? "true" : "false");
     db_exec(db, sql_query);
-    free(sql_query);
 }
 
 
-void insert_default_values(sqlite3 *db) {
-    uchar size_of_default_services = sizeof(GEONS_DEFAULT_SERVICES) / sizeof(GEONS_DEFAULT_SERVICES[0]);
-    uchar *sql_query = (uchar *) malloc(MAX_SQL_QUERY_SIZE);
+void insert_default_values(Database *db) {
+    if (db->is_ledger) {
+        uchar size_of_default_services = sizeof(GEONS_DEFAULT_SERVICES) / sizeof(GEONS_DEFAULT_SERVICES[0]);
+        uchar sql_query[MAX_SQL_QUERY_SIZE];
 
-    uchar *services_table = "services";
+        uchar *services_table = "services";
 
-    for (uchar i = 0; i < size_of_default_services; i++) {
-        snprintf(sql_query, MAX_SQL_QUERY_SIZE, 
-            "INSERT INTO %s (service_name, service_url, is_local) VALUES ('%s', '%s', %d);", services_table, 
-            GEONS_DEFAULT_SERVICES[i].name, GEONS_DEFAULT_SERVICES[i].url, GEONS_DEFAULT_SERVICES[i].is_local == 1
-        );
+        for (uchar i = 0; i < size_of_default_services; i++) {
+            snprintf(sql_query, MAX_SQL_QUERY_SIZE, 
+                "INSERT INTO %s (service_name, service_url, is_local) VALUES ('%s', '%s', %d);", services_table, 
+                GEONS_DEFAULT_SERVICES[i].name, GEONS_DEFAULT_SERVICES[i].url, GEONS_DEFAULT_SERVICES[i].is_local == 1
+            );
 
-        db_exec(db, sql_query);
+            db_exec(db, sql_query);
+        }
+
     }
-
-    free(sql_query);
-    set_geons_settings_config_status(db, 1);
+    
+    if (!db->is_ledger)
+        set_geons_settings_config_status(db, 1);
 }
 
 
-void create_default_tables(sqlite3 *db) {
-    uchar size_of_tables = sizeof(GEONS_DB_TABLES) / sizeof(GEONS_DB_TABLES[0]);
-    uchar *sql_query = (uchar *) malloc(MAX_SQL_QUERY_SIZE);
+void create_default_tables(Database *db) {
+    uchar size_of_tables;
+    if (db->is_ledger)
+        size_of_tables = sizeof(GEONS_LEDGER_DB_TABLES) / sizeof(GEONS_LEDGER_DB_TABLES[0]);
+    else
+        size_of_tables = sizeof(GEONS_LOCAL_DB_TABLES) / sizeof(GEONS_LOCAL_DB_TABLES[0]);
+
+    uchar sql_query[MAX_SQL_QUERY_SIZE];
     
+
     for (uchar i = 0; i < size_of_tables; i++) {
-        // Constructing sql query
         snprintf(sql_query, MAX_SQL_QUERY_SIZE, 
             "CREATE TABLE IF NOT EXISTS %s %s;", 
-            GEONS_DB_TABLES[i].name,
-            GEONS_DB_TABLES[i].schema
+            db->is_ledger ? GEONS_LEDGER_DB_TABLES[i].name : GEONS_LOCAL_DB_TABLES[i].name,
+            db->is_ledger ? GEONS_LEDGER_DB_TABLES[i].schema : GEONS_LOCAL_DB_TABLES[i].schema
         );
-
         db_exec(db, sql_query);
     }
-    free(sql_query);
 
     if (!is_geons_configured(db))
         insert_default_values(db);

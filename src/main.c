@@ -6,9 +6,14 @@ int main(int argc, char *argv[]) {
 
     init_io_system(argv[0]);
 
-    sqlite3 *db;
-    db_connect(db);
-    db_disconnect(db);
+    Database *ledger_db = db_open(LEDGER_DB);
+    Database *local_db = db_open(LOCAL_DB);
+    
+    db_connect(ledger_db);
+    db_connect(local_db);
+
+    db_disconnect(ledger_db);
+    db_disconnect(local_db);
 
     return 0;
 }

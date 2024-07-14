@@ -2,7 +2,8 @@
 #define GEONS_CONSTANTS_H 1
 
 // Database constants
-#define DATABASE_NAME "ledger.db"
+#define LEDGER_DB "ledger.db"
+#define LOCAL_DB "local.db"
 #define MAX_SQL_QUERY_SIZE 1024
 
 // System constants

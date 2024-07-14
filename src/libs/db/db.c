@@ -1,33 +1,45 @@
 #include "db.h"
+#include "table.h"
 
-void db_select(sqlite3 *db, uchar *sql_query, uchar **output) {
+
+Database *db_open(uchar *db_name) {
+    sqlite3 *sqlite_db;
+    Database *db = (Database *) malloc(sizeof(Database));
+    db->db_name = db_name;
+    db->is_ledger = !strncmp(db_name, LEDGER_DB, strlen(db_name));
+    db->sqlite_db = sqlite_db;
+    return db;
+}
+
+
+void db_fetch(Database *db, uchar *sql_query, uchar **output) {
 
 }
 
 
-void db_exec(sqlite3 *db, uchar *sql_query) {
-    uchar sql_error = sqlite3_exec(db, sql_query, 0, 0, 0);
+void db_exec(Database *db, uchar *sql_query) {
+    uchar sql_error = sqlite3_exec(db->sqlite_db, sql_query, 0, 0, 0);
     if (sql_error != SQLITE_OK) {
-        fprintf(stderr, "SQL error: %s\nquery: %s\n", sqlite3_errmsg(db), sql_query);
+        fprintf(stderr, "SQL error: %s\nquery: %s\n", sqlite3_errmsg(db->sqlite_db), sql_query);
         exit(sql_error);
     }
 }
 
 
-void db_init(sqlite3 *db) {
+void db_init(Database *db) {
     create_default_tables(db);
 }
 
 
-void db_connect(sqlite3 *db) {
+void db_connect(Database *db) {
     uchar db_path[SYS_MAX_PATH_LENGTH];
     get_cwd_path(db_path, sizeof(db_path));
-    strncat(db_path, DATABASE_NAME, sizeof(db_path) - 1);
+    strncat(db_path, db->db_name, sizeof(db_path) - 1);
 
-    int connection_error = sqlite3_open(db_path, &db);
+    int connection_error = sqlite3_open(db_path, &db->sqlite_db);
     if (connection_error) {
-        fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
-        sqlite3_close(db);
+        fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db->sqlite_db));
+        db_disconnect(db);
         exit(connection_error);
     }
 
@@ -35,7 +47,10 @@ void db_connect(sqlite3 *db) {
 }
 
 
-void db_disconnect(sqlite3 *db) {
-    if (db != NULL)
-        sqlite3_close(db);
+void db_disconnect(Database *db) {
+    if (db != NULL) {
+        if (db->sqlite_db != NULL)
+            sqlite3_close(db->sqlite_db);
+        free(db);
+    }
 }
