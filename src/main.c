@@ -1,16 +1,10 @@
 #include <stdio.h>
-#include "libs/socket/socket.h"
+#include "libs/server/server.h"
 
 int main(int argc, char *argv[]) {
-    printf("geoNS-Core is now running.\n");
-
-    Socket *server = open_server_socket("127.0.0.1", NODE_GATEWAY_PORT);
-    printf("Server listening on %s:%d\n", server->server_addr, server->port);
-    handle_server_socket(server);
-    sleep(10); // Let server run for a bit
-    server->is_alive = 0;
-
-    kill_server(server);
+    GeoNSServer *server = create_geons_server(argv[0]);
+    sleep(2); //? MemCheck: killing the server after some seconds
+    kill_geons_server(server);
 
     return 0;
 }

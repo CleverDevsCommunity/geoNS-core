@@ -46,7 +46,7 @@ uchar remove_connection(SocketConnection **head, SocketConnection *connection);
 Socket *open_server_socket(uchar *server, ushort port);
 void handle_server_socket(Socket *server);
 void kill_socket(int fd);
-void kill_server(Socket *server);
+void kill_socket_server(Socket *server);
 void *handle_client(void *arg);
 Socket *connect_to_socket_server(uchar *server_addr, ushort port);
 ssize_t send_message(int fd, uchar *message, size_t message_length, int flags);

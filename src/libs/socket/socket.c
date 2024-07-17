@@ -97,7 +97,7 @@ void handle_server_socket(Socket *server) {
     server->is_alive = 1;
     if (pthread_create(&server_thread, NULL, server_socket_thread, (void *)server) != 0) {
         perror("pthread_create failed");
-        kill_server(server);
+        kill_socket_server(server);
         exit(EXIT_FAILURE);
     } else
         pthread_detach(server_thread);
@@ -145,7 +145,7 @@ Socket *open_server_socket(uchar *server_addr, ushort port) {
 }
 
 
-void kill_server(Socket *server) {
+void kill_socket_server(Socket *server) {
     SocketConnection *current = server->connections;
     while (current != NULL) {
         SocketConnection* previous = current;

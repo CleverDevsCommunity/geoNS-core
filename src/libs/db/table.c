@@ -21,12 +21,19 @@ Table GEONS_LEDGER_DB_TABLES[2] = {
     )"}
 };
 
-Table GEONS_LOCAL_DB_TABLES[1] = {
+Table GEONS_LOCAL_DB_TABLES[2] = {
     {"settings", "(\
         id INTEGER PRIMARY KEY AUTOINCREMENT,\
         setting_key TEXT UNIQUE,\
         setting_value TEXT\
     )"},
+    {"nodes", "(\
+        id INTEGER PRIMARY KEY AUTOINCREMENT,\
+        server TEXT CHECK (LENGTH(server) <= 15),\
+        node_gateway TEXT CHECK (LENGTH(node_gateway) <= 5),\
+        data_gateway TEXT CHECK (LENGTH(data_gateway) <= 5),\
+        status TEXT CHECK (status IN ('online', 'offline'))\
+    )"}
 };
 
 Service GEONS_DEFAULT_SERVICES[9] = {
@@ -70,12 +77,35 @@ uchar is_geons_configured(Database *db) {
 void set_geons_settings_config_status(Database *db, uchar is_configured) {
     if (db->is_ledger)
         return;
-        
+
     uchar *settings_table = "settings";
     uchar sql_query[MAX_SQL_QUERY_SIZE];
-    snprintf(sql_query, MAX_SQL_QUERY_SIZE, "INSERT INTO %s (setting_key, setting_value) VALUES ('geons_config_status', '%s');",
-    settings_table, is_configured == 1 ? "true" : "false");
-    db_exec(db, sql_query);
+    sqlite3_stmt *stmt;
+
+    snprintf(sql_query, MAX_SQL_QUERY_SIZE, "SELECT * FROM %s WHERE setting_key = 'geons_config_status';", settings_table);
+    
+    int rc = sqlite3_prepare_v2(db->sqlite_db, sql_query, -1, &stmt, 0);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(db->sqlite_db));
+        sqlite3_finalize(stmt);
+        db_disconnect(db);
+    }
+    
+    if ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+        const uchar *value = sqlite3_column_text(stmt, 2);
+        is_configured = !strncmp(value, "true", strlen("true") + 1);
+        sqlite3_finalize(stmt);
+    }
+    else {
+        is_configured = 0;
+        sqlite3_finalize(stmt);
+    }
+
+    if (!is_configured) {
+        snprintf(sql_query, MAX_SQL_QUERY_SIZE, "INSERT INTO %s (setting_key, setting_value) VALUES ('geons_config_status', '%s');",
+        settings_table, "true");
+        db_exec(db, sql_query);
+    }
 }
 
 
