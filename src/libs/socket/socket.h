@@ -41,6 +41,8 @@ typedef struct sClientData
     SocketConnection *current;
 } ClientData;
 
+void add_connection(SocketConnection **head, SocketConnection *connection);
+uchar remove_connection(SocketConnection **head, SocketConnection *connection);
 Socket *open_server_socket(uchar *server, ushort port);
 void handle_server_socket(Socket *server);
 void kill_socket(int fd);
