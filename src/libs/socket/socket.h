@@ -8,11 +8,18 @@
 #include <arpa/inet.h>
 #include "../core/core.h"
 
+typedef enum eConnectionStatus 
+{
+    NOT_CONNECTED,
+    CONNECTION_ESTABLISHED
+} ConnectionStatus;
+
 typedef struct sSocketConnection
 {
     uchar buffer[SOCKET_MAX_BUFFER_SIZE];
-    int *client;
+    int fd;
     struct sSocketConnection *next;
+    ConnectionStatus connection_status;
 } SocketConnection;
 
 
@@ -28,7 +35,13 @@ typedef struct sSocket
 } Socket;
 
 
-Socket *start_server_socket(uchar *server, ushort port);
+typedef struct sClientData
+{
+    SocketConnection **head;
+    SocketConnection *current;
+} ClientData;
+
+Socket *open_server_socket(uchar *server, ushort port);
 void handle_server_socket(Socket *server);
 void kill_socket(int fd);
 void kill_server(Socket *server);

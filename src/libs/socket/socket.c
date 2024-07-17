@@ -1,42 +1,93 @@
 #include "socket.h"
 
 
+void add_connection(SocketConnection **head, SocketConnection *connection) {
+    connection->next = NULL;
+    if (*head == NULL) {
+        *head = connection;
+    }
+    else {
+        SocketConnection *current = *head;
+        while (current->next != NULL) {
+            current = current->next;
+        }
+        current->next = connection;
+    }
+}
+
+
+uchar remove_connection(SocketConnection **head, SocketConnection *connection) {
+    if (*head != NULL) {
+        SocketConnection *current = *head;
+        SocketConnection *previous = NULL;
+
+        while (current != connection) {
+            previous = current;
+            current = current->next;
+            if (current == NULL)
+                return 0;
+        }
+
+        if (current->connection_status == CONNECTION_ESTABLISHED) {
+            kill_socket(current->fd);
+        }
+
+        if (current->next != NULL) {
+            if (previous == NULL)
+                *head = current->next;
+            else
+                previous->next = current->next;
+        
+            free(current);
+            current = NULL;
+        }
+        else {
+            if (previous == NULL) {
+                free(*head);
+                *head = NULL;
+            }
+            else {
+                free(current);
+                current = NULL;
+                previous->next = NULL;
+            }
+        }
+        return 1;
+    }
+    return 0;
+}
+
+
 void *server_socket_thread(void *arg) {
     Socket *server = (Socket *) arg;
     thread thread_id;
+
     while (server->is_alive) {
         SocketConnection *connection = (SocketConnection *) malloc(sizeof(SocketConnection));
-        connection->client = malloc(sizeof(int));
-        connection->next = NULL;
-        if (server->connections == NULL) {
-            server->connections = connection;
-        }
-        else {
-            SocketConnection *current = server->connections;
-            while (current != NULL) {
-                current = current->next;
-            }
-            current = connection;
-        }
-        if ((*connection->client = accept(server->fd, (struct sockaddr *)&server->address, (socklen_t*)&server->addrlen)) < 0) {
+        connection->connection_status = NOT_CONNECTED;
+        add_connection(&server->connections, connection);
+
+        if ((connection->fd = accept(server->fd, (struct sockaddr *)&server->address, (socklen_t*)&server->addrlen)) < 0) {
             perror("accept failed");
-            free(connection->client);
+            remove_connection(&server->connections, connection);
             continue;
         }
         
+        connection->connection_status = CONNECTION_ESTABLISHED;
         printf("New connection accepted\n");
 
-        if (pthread_create(&thread_id, NULL, handle_client, (void *)connection) != 0) {
+        ClientData *client_data = (ClientData *) malloc(sizeof(ClientData));
+        client_data->head = &server->connections;
+        client_data->current = connection;
+
+        if (pthread_create(&thread_id, NULL, handle_client, (void *)client_data) != 0) {
             perror("pthread_create failed");
-            kill_socket(*connection->client);
-            free(connection->client);
+            remove_connection(&server->connections, connection);
         } else {
             pthread_detach(thread_id);
         }
     }
 
-    server->is_alive = 0;
-    kill_server(server);
     return NULL;
 }
 
@@ -49,18 +100,17 @@ void handle_server_socket(Socket *server) {
         kill_server(server);
         exit(EXIT_FAILURE);
     } else
-        pthread_detach(server_thread); // Detach the thread so that resources are freed when it terminates
+        pthread_detach(server_thread);
 }
 
 
-Socket *start_server_socket(uchar *server_addr, ushort port) {
+Socket *open_server_socket(uchar *server_addr, ushort port) {
     Socket *server = (Socket *) malloc(sizeof(Socket));
     server->addrlen = sizeof(server->address);
     server->server_addr = server_addr;
     server->port = port;
     server->is_alive = 0;
-    
-    thread thread_id;
+    server->connections = NULL;
     
     if ((server->fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("socket failed");
@@ -98,14 +148,13 @@ Socket *start_server_socket(uchar *server_addr, ushort port) {
 void kill_server(Socket *server) {
     SocketConnection *current = server->connections;
     while (current != NULL) {
-        close(*current->client);
-        free(current->client);
-        server->connections = current->next;
-        free(current);
-        current = server->connections;
+        SocketConnection* previous = current;
+        current = current->next;
+        remove_connection(&server->connections, previous);
     }
     kill_socket(server->fd);
     free(server);
+    server = NULL;
 }
 
 
@@ -115,11 +164,11 @@ void kill_socket(int fd) {
 
 
 void *handle_client(void *arg) {
-    SocketConnection connection = *(SocketConnection *) arg;
-    int client_socket = *connection.client;
-    free(arg);
+    ClientData *client_data = (ClientData *) arg;
+    SocketConnection *connection = client_data->current;
+    int client_socket = connection->fd;
 
-    char *buffer = connection.buffer;
+    char *buffer = connection->buffer;
     int valread;
 
     while ((valread = read(client_socket, buffer, SOCKET_MAX_BUFFER_SIZE)) > 0) {
@@ -129,7 +178,10 @@ void *handle_client(void *arg) {
     }
 
     printf("Client disconnected\n");
-    close(client_socket);
+    if (remove_connection(client_data->head, client_data->current)) {
+        free(client_data);
+        client_data = NULL;
+    }
     return NULL;
 }
 
@@ -140,8 +192,6 @@ Socket *connect_to_socket_server(uchar *server_addr, ushort port) {
     client->server_addr = server_addr;
     int sock = 0;
     struct sockaddr_in serv_addr;
-    // char buffer[BUFFER_SIZE] = {0};
-    // char *hello = "Hello from client";
 
     // Create socket
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -164,22 +214,14 @@ Socket *connect_to_socket_server(uchar *server_addr, ushort port) {
         exit(EXIT_FAILURE);
     }
 
-    // send(sock, hello, strlen(hello), 0);
-    // printf("Hello message sent\n");
-
-    // int valread = read(sock, buffer, BUFFER_SIZE);
-    // printf("Received: %s\n", buffer);
-
-    // kill_socket(sock);
-    // free(client);
     return client;
 }
 
 ssize_t send_message(int fd, uchar *message, size_t message_length, int flags) {
-    send(fd, message, message_length, flags);
+    return send(fd, message, message_length, flags);
 }
 
 
 ssize_t recv_message(int fd, void *buffer, size_t buffer_size, int flags) {
-    recv(fd, buffer, buffer_size, flags);
+    return recv(fd, buffer, buffer_size, flags);
 }
