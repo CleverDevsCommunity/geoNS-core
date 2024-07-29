@@ -17,12 +17,13 @@ void db_fetch(Database *db, uchar *sql_query, uchar **output) {
 }
 
 
-void db_exec(Database *db, uchar *sql_query) {
+uchar db_exec(Database *db, uchar *sql_query) {
     uchar sql_error = sqlite3_exec(db->sqlite_db, sql_query, 0, 0, 0);
     if (sql_error != SQLITE_OK) {
-        fprintf(stderr, "SQL error: %s\nquery: %s\n", sqlite3_errmsg(db->sqlite_db), sql_query);
-        exit(sql_error);
+        fprintf(stderr, "SQL error: %s\nCode: %d\nQuery: %s\n", sqlite3_errmsg(db->sqlite_db), sql_error, sql_query);
+        return 0;
     }
+    return 1;
 }
 
 

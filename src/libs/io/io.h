@@ -26,6 +26,6 @@ ulong get_file_size(uchar *file_path);
 void get_cwd_path(uchar *file_path, ushort size_of_file_path);
 uchar is_directory_exists(uchar *directory);
 uchar is_sproc_exists(void);
-void init_io_system(uchar *exec_path);
+void init_io_system(const char *exec_path);
 
 #endif // !GEONS_IO_H

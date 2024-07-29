@@ -1,4 +1,30 @@
 #include "socket.h"
+#include "../geonsp/geonsp.h"
+
+
+uchar is_my_ip(const uchar *ip) {
+    uchar *all_interfaces = "0.0.0.0";
+    if (!strncmp(ip, all_interfaces, MAX_IPV4_LENGTH))
+        return 1;
+
+    struct ifaddrs *ifap, *ifa;
+    struct sockaddr_in *sa;
+    char addr[INET_ADDRSTRLEN];
+
+    getifaddrs(&ifap);
+    for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
+            sa = (struct sockaddr_in *) ifa->ifa_addr;
+            inet_ntop(AF_INET, &sa->sin_addr, addr, sizeof(addr));
+            if (strcmp(ip, addr) == 0) {
+                freeifaddrs(ifap);
+                return 1; // IP address belongs to the system
+            }
+        }
+    }
+    freeifaddrs(ifap);
+    return 0; // IP address does not belong to the system
+}
 
 
 void add_connection(SocketConnection **head, SocketConnection *connection) {
@@ -59,7 +85,7 @@ uchar remove_connection(SocketConnection **head, SocketConnection *connection) {
 
 
 void *server_socket_thread(void *arg) {
-    Socket *server = (Socket *) arg;
+    SocketServer *server = (SocketServer *) arg;
     thread thread_id;
 
     while (server->is_alive) {
@@ -79,8 +105,9 @@ void *server_socket_thread(void *arg) {
         ClientData *client_data = (ClientData *) malloc(sizeof(ClientData));
         client_data->head = &server->connections;
         client_data->current = connection;
+        client_data->callback = &node_server_callback;
 
-        if (pthread_create(&thread_id, NULL, handle_client, (void *)client_data) != 0) {
+        if (pthread_create(&thread_id, NULL, handle_client, (void *)&client_data) != 0) {
             perror("pthread_create failed");
             remove_connection(&server->connections, connection);
         } else {
@@ -92,20 +119,19 @@ void *server_socket_thread(void *arg) {
 }
 
 
-void handle_server_socket(Socket *server) {
-    thread server_thread;
+void handle_server_socket(SocketServer *server) {
     server->is_alive = 1;
-    if (pthread_create(&server_thread, NULL, server_socket_thread, (void *)server) != 0) {
+    if (pthread_create(&server->thread, NULL, server_socket_thread, (void *)server) != 0) {
         perror("pthread_create failed");
         kill_socket_server(server);
         exit(EXIT_FAILURE);
     } else
-        pthread_detach(server_thread);
+        pthread_detach(server->thread);
 }
 
 
-Socket *open_server_socket(uchar *server_addr, ushort port) {
-    Socket *server = (Socket *) malloc(sizeof(Socket));
+SocketServer *open_server_socket(uchar *server_addr, ushort port) {
+    SocketServer *server = (SocketServer *) malloc(sizeof(SocketServer));
     server->addrlen = sizeof(server->address);
     server->server_addr = server_addr;
     server->port = port;
@@ -145,16 +171,18 @@ Socket *open_server_socket(uchar *server_addr, ushort port) {
 }
 
 
-void kill_socket_server(Socket *server) {
-    SocketConnection *current = server->connections;
-    while (current != NULL) {
-        SocketConnection* previous = current;
-        current = current->next;
-        remove_connection(&server->connections, previous);
+void kill_socket_server(SocketServer *server) {
+    if (server != NULL) {
+        SocketConnection *current = server->connections;
+        while (current != NULL) {
+            SocketConnection *previous = current;
+            current = current->next;
+            remove_connection(&server->connections, previous);
+        }
+        kill_socket(server->fd);
+        free(server);
+        server = NULL;
     }
-    kill_socket(server->fd);
-    free(server);
-    server = NULL;
 }
 
 
@@ -164,57 +192,61 @@ void kill_socket(int fd) {
 
 
 void *handle_client(void *arg) {
-    ClientData *client_data = (ClientData *) arg;
-    SocketConnection *connection = client_data->current;
+    ClientData **client_data = (ClientData **) arg;
+    SocketConnection **head = (*client_data)->head;
+    SocketConnection *connection = (*client_data)->current;
+    ServerCallback *callback = (*client_data)->callback;
+    free(*client_data);
+    *client_data = NULL;
+
     int client_socket = connection->fd;
-
     char *buffer = connection->buffer;
-    int valread;
+    int message_length;
 
-    while ((valread = read(client_socket, buffer, SOCKET_MAX_BUFFER_SIZE)) > 0) {
-        buffer[valread] = '\0';
-        printf("Received: %s\n", buffer);
-        send(client_socket, buffer, valread, 0); // Echo back the received message
+    while ((message_length = read(client_socket, buffer, SOCKET_MAX_BUFFER_SIZE)) > 0) {
+        buffer[message_length] = '\0';
+        callback(client_socket, buffer);
     }
 
     printf("Client disconnected\n");
-    if (remove_connection(client_data->head, client_data->current)) {
-        free(client_data);
-        client_data = NULL;
-    }
+    remove_connection(head, connection);
     return NULL;
 }
 
 
-Socket *connect_to_socket_server(uchar *server_addr, ushort port) {
-    Socket *client = (Socket *) malloc(sizeof(Socket));
-    client->port = port;
-    client->server_addr = server_addr;
-    int sock = 0;
+SocketServer *connect_to_socket_server(uchar *server_addr, ushort port) {
+    SocketServer *server = (SocketServer *) malloc(sizeof(SocketServer));
+    server->port = port;
+    server->server_addr = server_addr;
+    server->fd = 0;
+    server->connections = NULL;
     struct sockaddr_in serv_addr;
 
     // Create socket
-    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    if ((server->fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("Client: Socket creation error");
-        exit(EXIT_FAILURE);
+        kill_socket_server(server);
+        return NULL;
     }
 
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(client->port);
+    serv_addr.sin_port = htons(server->port);
 
     // Convert IPv4 and IPv6 addresses from text to binary form
-    if (inet_pton(AF_INET, client->server_addr, &serv_addr.sin_addr) <= 0) {
+    if (inet_pton(AF_INET, server->server_addr, &serv_addr.sin_addr) <= 0) {
         perror("Client: Invalid address/ Address not supported");
-        exit(EXIT_FAILURE);
+        kill_socket_server(server);
+        return NULL;
     }
 
     // Connect to the server
-    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    if (connect(server->fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         perror("Client: Connection failed");
-        exit(EXIT_FAILURE);
+        kill_socket_server(server);
+        return NULL;
     }
 
-    return client;
+    return server;
 }
 
 ssize_t send_message(int fd, uchar *message, size_t message_length, int flags) {

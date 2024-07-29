@@ -16,7 +16,7 @@ typedef struct sDatabase
 
 Database *db_open(uchar *db_name);
 void db_fetch(Database *db, uchar *sql_query, uchar **output);
-void db_exec(Database *db, uchar *sql_query);
+uchar db_exec(Database *db, uchar *sql_query);
 void db_init(Database *db);
 void db_connect(Database *db);
 void db_disconnect(Database *db);

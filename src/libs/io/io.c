@@ -37,7 +37,7 @@ uchar is_sproc_exists(void) {
 }
 
 
-void init_io_system(uchar *exec_path) {
+void init_io_system(const char *exec_path) {
     if (is_sproc_exists()) {
         #if OS_LINUX == 1
         readlink("/proc/self/exe", cwd, SYS_MAX_PATH_LENGTH);

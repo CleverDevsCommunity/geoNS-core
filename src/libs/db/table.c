@@ -1,6 +1,6 @@
 #include "table.h"
 
-Table GEONS_LEDGER_DB_TABLES[2] = {
+Table GEONS_LEDGER_DB_TABLES[] = {
     {"logs", "(\
         id INTEGER PRIMARY KEY AUTOINCREMENT,\
         region TEXT,\
@@ -21,7 +21,7 @@ Table GEONS_LEDGER_DB_TABLES[2] = {
     )"}
 };
 
-Table GEONS_LOCAL_DB_TABLES[2] = {
+Table GEONS_LOCAL_DB_TABLES[] = {
     {"settings", "(\
         id INTEGER PRIMARY KEY AUTOINCREMENT,\
         setting_key TEXT UNIQUE,\
@@ -30,13 +30,12 @@ Table GEONS_LOCAL_DB_TABLES[2] = {
     {"nodes", "(\
         id INTEGER PRIMARY KEY AUTOINCREMENT,\
         server TEXT CHECK (LENGTH(server) <= 15),\
-        node_gateway TEXT CHECK (LENGTH(node_gateway) <= 5),\
-        data_gateway TEXT CHECK (LENGTH(data_gateway) <= 5),\
-        status TEXT CHECK (status IN ('online', 'offline'))\
+        node_gateway SHORT,\
+        data_gateway SHORT\
     )"}
 };
 
-Service GEONS_DEFAULT_SERVICES[9] = {
+Service GEONS_DEFAULT_SERVICES[] = {
     {"Github", "https://github.com/", 0},
     {"Google", "https://www.google.com/", 0},
     {"Gmail", "https://www.google.com/gmail/about/", 0},
@@ -47,6 +46,47 @@ Service GEONS_DEFAULT_SERVICES[9] = {
     {"Filimo", "https://www.filimo.com/", 1},
     {"Digikala", "https://www.digikala.com/", 1}
 };
+
+
+uchar insert_new_node(Database *db, uchar *server_addr, ushort node_gateway_port, ushort data_gateway_port) {
+    // returns 0 if receives any error
+    // returns 1 if successfully adds new node
+    // returns 2 if node has been already added
+    if (db->is_ledger)
+        return 0;
+    
+    uchar sql_query[MAX_SQL_QUERY_SIZE];
+    snprintf(sql_query, sizeof(sql_query), 
+        "SELECT * FROM nodes WHERE server = '%s' AND node_gateway = %d AND data_gateway = %d;",
+        server_addr,
+        node_gateway_port,
+        data_gateway_port
+    );
+
+    sqlite3_stmt *stmt;
+    
+    int rc = sqlite3_prepare_v2(db->sqlite_db, sql_query, -1, &stmt, 0);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(db->sqlite_db));
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+    
+    if ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        return 2;
+    }
+
+    sqlite3_finalize(stmt);
+    snprintf(sql_query, sizeof(sql_query), 
+        "INSERT INTO nodes (server, node_gateway, data_gateway) VALUES ('%s', %d, %d)",
+        server_addr,
+        node_gateway_port,
+        data_gateway_port
+    );
+
+    return db_exec(db, sql_query);
+}
 
 
 uchar is_geons_configured(Database *db) {
@@ -66,7 +106,7 @@ uchar is_geons_configured(Database *db) {
     if ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
         const uchar *value = sqlite3_column_text(stmt, 2);
         sqlite3_finalize(stmt);
-        return !strncmp(value, "true", strlen("true") + 1);
+        return !strncmp(value, "true", strlen("true"));
     }
     
     sqlite3_finalize(stmt);
@@ -93,7 +133,7 @@ void set_geons_settings_config_status(Database *db, uchar is_configured) {
     
     if ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
         const uchar *value = sqlite3_column_text(stmt, 2);
-        is_configured = !strncmp(value, "true", strlen("true") + 1);
+        is_configured = !strncmp(value, "true", strlen("true"));
         sqlite3_finalize(stmt);
     }
     else {
