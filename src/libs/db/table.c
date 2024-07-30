@@ -31,7 +31,8 @@ Table GEONS_LOCAL_DB_TABLES[] = {
         id INTEGER PRIMARY KEY AUTOINCREMENT,\
         server TEXT CHECK (LENGTH(server) <= 15),\
         node_gateway SHORT,\
-        data_gateway SHORT\
+        data_gateway SHORT,\
+        status TEXT CHECK (status IN ('active', 'inactive'))\
     )"}
 };
 
@@ -46,6 +47,59 @@ Service GEONS_DEFAULT_SERVICES[] = {
     {"Filimo", "https://www.filimo.com/", 1},
     {"Digikala", "https://www.digikala.com/", 1}
 };
+
+
+uchar remove_node(Database *db, Node *node) {
+    uchar sql_query[MAX_SQL_QUERY_SIZE];
+    // server, node_gateway, data_gateway, status
+    snprintf(sql_query, sizeof(sql_query),
+        "DELETE FROM nodes WHERE server = '%s' AND node_gateway = %d AND data_gateway = %d;",
+        node->server_addr,
+        node->node_gateway,
+        node->data_gateway
+    );
+
+    return db_exec(db, sql_query);
+}
+
+
+char get_all_active_nodes(Database *db, Node **nodes, uchar size_of_nodes) {
+    if (db->is_ledger)
+        return -1;
+    
+    uchar sql_query[MAX_SQL_QUERY_SIZE];
+    snprintf(sql_query, sizeof(sql_query), 
+        "SELECT * FROM nodes WHERE status = 'active' LIMIT %d;",
+        size_of_nodes
+    );
+
+    sqlite3_stmt *stmt;
+    
+    int rc = sqlite3_prepare_v2(db->sqlite_db, sql_query, -1, &stmt, 0);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(db->sqlite_db));
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+    
+    uchar current_node = 0;
+    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+        uchar id = sqlite3_column_int(stmt, 0);
+        uchar *server_addr = (uchar *) sqlite3_column_text(stmt, 1);
+        ushort node_gateway = sqlite3_column_int(stmt, 2);
+        ushort data_gateway = sqlite3_column_int(stmt, 3);
+        uchar *status = (uchar *) sqlite3_column_text(stmt, 4);
+        Node *node = (Node *) malloc(sizeof(Node));
+        strncpy(node->server_addr, server_addr, sizeof(node->server_addr));
+        strncpy(node->status, status, sizeof(node->status));
+        node->id = id;
+        node->node_gateway = node_gateway;
+        node->data_gateway = data_gateway;
+        nodes[current_node++] = node;
+    }
+    sqlite3_finalize(stmt);
+    return current_node;
+}
 
 
 uchar insert_new_node(Database *db, uchar *server_addr, ushort node_gateway_port, ushort data_gateway_port) {
@@ -79,7 +133,7 @@ uchar insert_new_node(Database *db, uchar *server_addr, ushort node_gateway_port
 
     sqlite3_finalize(stmt);
     snprintf(sql_query, sizeof(sql_query), 
-        "INSERT INTO nodes (server, node_gateway, data_gateway) VALUES ('%s', %d, %d)",
+        "INSERT INTO nodes (server, node_gateway, data_gateway, status) VALUES ('%s', %d, %d, 'active')",
         server_addr,
         node_gateway_port,
         data_gateway_port

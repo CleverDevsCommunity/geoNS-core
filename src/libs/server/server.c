@@ -1,47 +1,62 @@
 #include "server.h"
+#include "../geonsp/geonsp.h"
 
 
 Node INIT_NODES[] = {
-    {"192.168.124.16", NODE_GATEWAY_PORT, DATA_GATEWAY_PORT}
+    {0, "192.168.124.16", NODE_GATEWAY_PORT, DATA_GATEWAY_PORT, "active"}
 };
 
 
-uchar init_node_servers(Database *db) {
-    if (!db->is_ledger) {
-        uchar size_of_init_nodes = sizeof(INIT_NODES) / sizeof(INIT_NODES[0]);
-        for (uchar i = 0; i < size_of_init_nodes; i++) {
-            Node init_node = INIT_NODES[i];
-            if (is_my_ip(init_node.server_addr))
-                continue;
-            else {
-                SocketServer *server = is_geons_host_available(init_node.server_addr);
-                if (server != NULL) {
-                    uchar buffer[SOCKET_MAX_BUFFER_SIZE];
-                    JSON_Value *add_node_request = construct_add_node_request(
-                        GEONS_SERVER_ADDR,
-                        NODE_GATEWAY_PORT,
-                        DATA_GATEWAY_PORT
-                    );
-                    uchar *request_payload = json_serialize_to_string(add_node_request);
+uchar connect_localdb_node_servers() {
+    Database *db = db_open(LOCAL_DB);
+    db_connect(db);
+    Node *active_nodes[MAX_ACTIVE_NODES];
+    char nodes = get_all_active_nodes(db, active_nodes, MAX_ACTIVE_NODES);
+    if (nodes != -1) {
+        Node source_node = {
+            0,
+            GEONS_SERVER_ADDR,
+            NODE_GATEWAY_PORT,
+            DATA_GATEWAY_PORT,
+            "active"
+        };
 
-                    send_message(server->fd, request_payload, strlen(request_payload), 0);
-                    int message_length = recv_message(server->fd, buffer, sizeof(buffer), 0);
-                    buffer[message_length] = '\0';
-                    json_free_serialized_string(request_payload);
-                    json_value_free(add_node_request);
-
-                    // TODO: Get list of other nodes from server using GET_NODES request
-                    // .....
-
-                    kill_socket_server(server);
-                }
-                else
-                    continue;
-            }
+        for (uchar i = 0; i < nodes; i++) {
+            Node *destination_node = active_nodes[i];
+            handle_node_info_exchange(db, &source_node, destination_node, 1);
+            free(destination_node);
         }
+
+        db_disconnect(db);
         return 1;
     }
-    return 0;
+    else {
+        db_disconnect(db);
+        return 0;
+    }
+}
+
+
+uchar connect_init_node_servers() {
+    printf("Connecting to init servers...\n"); //! TEMP: should be removed after debugging.
+    uchar size_of_init_nodes = sizeof(INIT_NODES) / sizeof(INIT_NODES[0]);
+    if (size_of_init_nodes > 0) {
+        Database *db = db_open(LOCAL_DB);
+        db_connect(db);
+        Node source_node = {
+            0,
+            GEONS_SERVER_ADDR,
+            NODE_GATEWAY_PORT,
+            DATA_GATEWAY_PORT,
+            "active"
+        };
+        for (uchar i = 0; i < size_of_init_nodes; i++) {
+            Node *destination_node = &INIT_NODES[i];
+            handle_node_info_exchange(db, &source_node, destination_node, 0);
+        }
+        db_disconnect(db);
+    }
+    return connect_localdb_node_servers();
 }
 
 
@@ -65,7 +80,7 @@ GeoNSServer *create_geons_server(const char *exec_path) {
     // .....
 
     // initializing decentralization
-    if (init_node_servers(server->local_db)) {
+    if (connect_init_node_servers()) {
         // connecting databases
         db_connect(server->ledger_db);
         db_connect(server->local_db);
@@ -80,14 +95,16 @@ GeoNSServer *create_geons_server(const char *exec_path) {
 
 
 void kill_geons_server(GeoNSServer *server) {
-    // disconnecting databases
-    db_disconnect(server->ledger_db);
-    db_disconnect(server->local_db);
+    if (server != NULL) {
+        // disconnecting databases
+        db_disconnect(server->ledger_db);
+        db_disconnect(server->local_db);
 
-    // killing socket servers
-    kill_socket_server(server->node_gateway_server);
-    // kill_socket_server(server->data_gateway_server);
+        // killing socket servers
+        kill_socket_server(server->node_gateway_server);
+        // kill_socket_server(server->data_gateway_server);
 
-    free(server);
-    server = NULL;
+        free(server);
+        server = NULL;
+    }
 }

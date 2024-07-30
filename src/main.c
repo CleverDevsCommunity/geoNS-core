@@ -29,8 +29,7 @@ int main(int argc, const char *argv[]) {
         //* Running Server
         GeoNSServer *server = create_geons_server(argv[0]);
         sleep(10); //? MemCheck: killing the server after some seconds
-        if (server != NULL)
-            kill_geons_server(server);
+        kill_geons_server(server);
     }
     else {
         // TODO:
