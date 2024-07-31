@@ -1,5 +1,6 @@
 #include "socket.h"
 #include "../geonsp/geonsp.h"
+#include "../logger/logger.h"
 
 
 uchar is_my_ip(const uchar *ip) {
@@ -106,6 +107,8 @@ void *server_socket_thread(void *arg) {
         client_data->head = &server->connections;
         client_data->current = connection;
         client_data->callback = &node_server_callback;
+        strncpy(client_data->server_addr, server->server_addr, strlen(server->server_addr));
+        client_data->server_port = client_data->server_port;
 
         if (pthread_create(&thread_id, NULL, handle_client, (void *)&client_data) != 0) {
             perror("pthread_create failed");
@@ -173,11 +176,13 @@ SocketServer *open_server_socket(uchar *server_addr, ushort port) {
 
 void kill_socket_server(SocketServer *server) {
     if (server != NULL) {
+        msglog(DEBUG, "Killing socket server %s:%d", server->server_addr, server->port);
         SocketConnection *current = server->connections;
         while (current != NULL) {
             SocketConnection *previous = current;
             current = current->next;
-            remove_connection(&server->connections, previous);
+            if (remove_connection(&server->connections, previous))
+                msglog(DEBUG, "%s:%d removed a connection.", server->server_addr, server->port);
         }
         kill_socket(server->fd);
         free(server);
@@ -196,6 +201,8 @@ void *handle_client(void *arg) {
     SocketConnection **head = (*client_data)->head;
     SocketConnection *connection = (*client_data)->current;
     ServerCallback *callback = (*client_data)->callback;
+    uchar *server_addr = (*client_data)->server_addr;
+    ushort server_port = (*client_data)->server_port;
     free(*client_data);
     *client_data = NULL;
 
@@ -208,6 +215,7 @@ void *handle_client(void *arg) {
         callback(client_socket, buffer);
     }
 
+    msglog(DEBUG, "Client disconnected from %s:%d", server_addr, server_port);
     printf("Client disconnected\n");
     remove_connection(head, connection);
     return NULL;

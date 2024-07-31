@@ -46,6 +46,8 @@ typedef struct sClientData
     SocketConnection **head;
     SocketConnection *current;
     ServerCallback *callback;
+    uchar *server_addr;
+    ushort server_port;
 } ClientData;
 
 

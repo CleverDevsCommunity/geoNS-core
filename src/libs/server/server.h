@@ -29,7 +29,7 @@ extern Node INIT_NODES[];
 
 uchar connect_localdb_node_servers();
 uchar connect_init_node_servers();
-GeoNSServer *create_geons_server(const char *exec_path);
+GeoNSServer *create_geons_server();
 void kill_geons_server(GeoNSServer *server);
 
 #endif // !GEONS_SERVER_H

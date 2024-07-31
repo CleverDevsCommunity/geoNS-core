@@ -51,7 +51,6 @@ Service GEONS_DEFAULT_SERVICES[] = {
 
 uchar remove_node(Database *db, Node *node) {
     uchar sql_query[MAX_SQL_QUERY_SIZE];
-    // server, node_gateway, data_gateway, status
     snprintf(sql_query, sizeof(sql_query),
         "DELETE FROM nodes WHERE server = '%s' AND node_gateway = %d AND data_gateway = %d;",
         node->server_addr,

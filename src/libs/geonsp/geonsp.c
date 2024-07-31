@@ -1,4 +1,5 @@
 #include "geonsp.h"
+#include "../logger/logger.h"
 
 
 uchar handle_node_info_exchange(Database *db, Node *source_node, Node *destination_node, uchar remove_inactive_nodes) {
@@ -9,7 +10,7 @@ uchar handle_node_info_exchange(Database *db, Node *source_node, Node *destinati
         return 2;
     else {
         //! TEMP: should be removed after debugging.
-        printf("Exchanging node info with %s:%d\n", destination_node->server_addr, destination_node->node_gateway);
+        msglog(DEBUG, "Exchanging node info with %s:%d", destination_node->server_addr, destination_node->node_gateway);
         SocketServer *server = is_geons_host_available(
             destination_node->server_addr, 
             destination_node->node_gateway
@@ -53,8 +54,11 @@ uchar handle_node_info_exchange(Database *db, Node *source_node, Node *destinati
                     ushort node_gateway = json_object_get_number(node, "node");
                     ushort data_gateway = json_object_get_number(node, "data");
                     uchar *status = (uchar *)json_object_get_string(node, "status");
-                    insert_new_node(db, server_addr, node_gateway, data_gateway);
-                    // TODO: needs log system. when one introduced, make sure to insert logs of this insertion.
+                    uchar result = insert_new_node(db, server_addr, node_gateway, data_gateway);
+                    if (!result)
+                        msglog(ERROR, "Failed inserting new node %s:%d into localdb.", destination_node->server_addr, destination_node->node_gateway);
+                    else if (result == 1)
+                        msglog(INFO, "New node %s:%d registered into localdb.", destination_node->server_addr, destination_node->node_gateway);
                 }
             }
 
@@ -66,8 +70,10 @@ uchar handle_node_info_exchange(Database *db, Node *source_node, Node *destinati
         {
             // remove the current node
             if (remove_inactive_nodes) {
-                remove_node(db, destination_node);
-                // TODO: needs log system. when one introduced, make sure to insert logs of this deletion.
+                if (remove_node(db, destination_node))
+                    msglog(INFO, "Node %s:%d removed from localdb.", destination_node->server_addr, destination_node->node_gateway);
+                else
+                    msglog(ERROR, "Failed removing node %s:%d from localdb.", destination_node->server_addr, destination_node->node_gateway);
             }
             return 0;
         }
@@ -153,7 +159,7 @@ void server_proto_data_response(int fd, uchar is_success, uchar *message, JSON_V
     json_object_set_string(response_json, "message", message);
     json_object_set_value(response_json, "data", data);
     uchar *response = json_serialize_to_string(response_root);
-    printf("Response: %s\n", response); //! TEMP: should be removed after debugging.
+    msglog(DEBUG, "Response: %s", response);
     send_message(fd, response, strlen(response), 0);
     json_free_serialized_string(response);
     json_value_free(response_root);
@@ -166,7 +172,7 @@ void server_proto_response(int fd, uchar is_success, uchar *message) {
     json_object_set_string(response_json, "status", is_success ? "success" : "failed");
     json_object_set_string(response_json, "message", message);
     uchar *response = json_serialize_to_string(response_root);
-    printf("Response: %s\n", response); //! TEMP: should be removed after debugging.
+    msglog(DEBUG, "Response: %s", response);
     send_message(fd, response, strlen(response), 0);
     json_free_serialized_string(response);
     json_value_free(response_root);
@@ -175,7 +181,7 @@ void server_proto_response(int fd, uchar is_success, uchar *message) {
 
 void node_server_callback(int fd, uchar *request) {
     if (strlen(request) != 0) {
-        printf("Request: %s\n", request); //! TEMP: should be removed after debugging.
+        msglog(DEBUG, "Request: %s", request);
         JSON_Value *request_value = json_parse_string(request);
         JSON_Object *request_json = json_value_get_object(request_value);
         if (json_object_has_value(request_json, "method")) {

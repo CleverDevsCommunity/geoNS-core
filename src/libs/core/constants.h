@@ -20,4 +20,10 @@
 // Decentralization constants
 #define MAX_ACTIVE_NODES                        16
 
+// Logger constants
+#define MAX_LOG_LENGTH                          1024
+#define MAX_LOG_FILE_NAME_LENGTH                32
+#define MAX_LOG_PRE_TEXT_LENGTH                 32
+#define MAX_LOG_TIME_LENGTH                     20
+
 #endif // !GEONS_CONSTANTS_H
