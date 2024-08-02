@@ -1,10 +1,11 @@
 #include "server.h"
 #include "../geonsp/geonsp.h"
 #include "../logger/logger.h"
+#include "../config/config.h"
 
 
 Node INIT_NODES[] = {
-    {0, "192.168.124.16", NODE_GATEWAY_PORT, DATA_GATEWAY_PORT, "active"}
+    {0, "192.168.124.16", DEFAULT_NODE_GATEWAY_PORT, DEFAULT_DATA_GATEWAY_PORT, "active"}
 };
 
 
@@ -17,11 +18,12 @@ uchar connect_localdb_node_servers() {
     if (nodes != -1) {
         Node source_node = {
             0,
-            GEONS_SERVER_ADDR,
-            NODE_GATEWAY_PORT,
-            DATA_GATEWAY_PORT,
+            "",
+            CONFIG->node_gateway_port,
+            CONFIG->data_gateway_port,
             "active"
         };
+        strncpy(source_node.server_addr, CONFIG->geons_server_addr, sizeof(source_node.server_addr));
 
         for (uchar i = 0; i < nodes; i++) {
             Node *destination_node = active_nodes[i];
@@ -49,11 +51,13 @@ uchar connect_init_node_servers() {
         db_connect(db);
         Node source_node = {
             0,
-            GEONS_SERVER_ADDR,
-            NODE_GATEWAY_PORT,
-            DATA_GATEWAY_PORT,
+            "",
+            CONFIG->node_gateway_port,
+            CONFIG->data_gateway_port,
             "active"
         };
+        strncpy(source_node.server_addr, CONFIG->geons_server_addr, sizeof(source_node.server_addr));
+
         for (uchar i = 0; i < size_of_init_nodes; i++) {
             Node *destination_node = &INIT_NODES[i];
             handle_node_info_exchange(db, &source_node, destination_node, 0);
@@ -75,11 +79,11 @@ GeoNSServer *create_geons_server() {
     server->local_db = db_open(LOCAL_DB);
 
     // creating node socket server
-    server->node_gateway_server = open_server_socket(GEONS_SERVER_ADDR, NODE_GATEWAY_PORT);
+    server->node_gateway_server = open_server_socket(CONFIG->geons_server_addr, CONFIG->node_gateway_port);
     handle_server_socket(server->node_gateway_server);
 
     // creating data socket server
-    // server->data_gateway_server = open_server_socket(GEONS_SERVER_ADDR, DATA_GATEWAY_PORT);
+    // server->data_gateway_server = open_server_socket(CONFIG->geons_server_addr, CONFIG->data_gateway_port);
     // handle_server_socket(server->data_gateway_server);
 
     // TODO: setting up client API
@@ -115,7 +119,7 @@ void kill_geons_server(GeoNSServer *server) {
         // killing socket servers
         kill_socket_server(server->node_gateway_server);
         // kill_socket_server(server->data_gateway_server);
-
+        
         free(server);
         server = NULL;
         msglog(DEBUG, "GeoNSServer shut down.");

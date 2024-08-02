@@ -41,13 +41,23 @@ typedef struct sSocketServer
 } SocketServer;
 
 
+// TODO: should be implemented
+typedef struct sPeerInfo
+{
+    uchar server_addr[MAX_IPV6_LENGTH];
+    ushort server_port;
+    uchar client_addr[MAX_IPV6_LENGTH];
+    ushort client_port;
+} PeerInfo;
+
+
+
 typedef struct sClientData
 {
     SocketConnection **head;
     SocketConnection *current;
     ServerCallback *callback;
-    uchar *server_addr;
-    ushort server_port;
+    PeerInfo peer_info;
 } ClientData;
 
 

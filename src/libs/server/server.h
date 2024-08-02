@@ -17,7 +17,7 @@ typedef struct sGeoNSServer
 typedef struct sNode
 {
     uchar id;
-    uchar server_addr[MAX_IPV4_LENGTH];
+    uchar server_addr[MAX_IPV6_LENGTH];
     ushort node_gateway;
     ushort data_gateway;
     uchar status[16];

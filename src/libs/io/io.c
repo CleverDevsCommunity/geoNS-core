@@ -4,6 +4,11 @@
 uchar cwd[SYS_MAX_PATH_LENGTH];
 
 
+uchar is_file_exist(uchar *file_path) {
+    return !access(file_path, F_OK);
+}
+
+
 ulong get_file_size(uchar *file_path) {
     FILE *fp = fopen(file_path, "rb");
     

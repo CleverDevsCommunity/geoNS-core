@@ -9,7 +9,6 @@ uchar handle_node_info_exchange(Database *db, Node *source_node, Node *destinati
     if (is_my_ip(destination_node->server_addr))
         return 2;
     else {
-        //! TEMP: should be removed after debugging.
         msglog(DEBUG, "Exchanging node info with %s:%d", destination_node->server_addr, destination_node->node_gateway);
         SocketServer *server = is_geons_host_available(
             destination_node->server_addr, 
@@ -181,7 +180,18 @@ void server_proto_response(int fd, uchar is_success, uchar *message) {
 
 void node_server_callback(int fd, uchar *request) {
     if (strlen(request) != 0) {
-        msglog(DEBUG, "Request: %s", request);
+        msglog(DEBUG, 
+            "[%s:%d -> %s:%d] Request: %s", 
+            request
+        );
+        // msglog(DEBUG, 
+        //     "[%s:%d -> %s:%d] Request: %s", 
+        //     peer_info->client_addr,
+        //     peer_info->client_port,
+        //     peer_info->server_addr,
+        //     peer_info->server_port,
+        //     request
+        // );
         JSON_Value *request_value = json_parse_string(request);
         JSON_Object *request_json = json_value_get_object(request_value);
         if (json_object_has_value(request_json, "method")) {

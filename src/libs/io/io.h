@@ -22,6 +22,7 @@
 
 extern uchar cwd[SYS_MAX_PATH_LENGTH];
 
+uchar is_file_exist(uchar *file_path);
 ulong get_file_size(uchar *file_path);
 void get_cwd_path(uchar *file_path, ushort size_of_file_path);
 uchar is_directory_exists(uchar *directory);
