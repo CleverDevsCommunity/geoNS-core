@@ -151,47 +151,51 @@ SocketServer *is_geons_host_available(uchar *server_addr, ushort node_gateway) {
 }
 
 
-void server_proto_data_response(int fd, uchar is_success, uchar *message, JSON_Value *data) {
+void server_proto_data_response(int fd, uchar is_success, uchar *message, JSON_Value *data, PeerInfo *peer_info) {
     JSON_Value *response_root = json_value_init_object();
     JSON_Object *response_json = json_value_get_object(response_root);
     json_object_set_string(response_json, "status", is_success ? "success" : "failed");
     json_object_set_string(response_json, "message", message);
     json_object_set_value(response_json, "data", data);
     uchar *response = json_serialize_to_string(response_root);
-    msglog(DEBUG, "Response: %s", response);
+    msglog(DEBUG, 
+        "Response[%s:%d -> %s:%d]:\n- %32s%s", 
+        peer_info->client_addr, peer_info->client_port,
+        peer_info->server_addr, peer_info->server_port,
+        "", response
+    );
     send_message(fd, response, strlen(response), 0);
     json_free_serialized_string(response);
     json_value_free(response_root);
 }
 
 
-void server_proto_response(int fd, uchar is_success, uchar *message) {
+void server_proto_response(int fd, uchar is_success, uchar *message, PeerInfo *peer_info) {
     JSON_Value *response_root = json_value_init_object();
     JSON_Object *response_json = json_value_get_object(response_root);
     json_object_set_string(response_json, "status", is_success ? "success" : "failed");
     json_object_set_string(response_json, "message", message);
     uchar *response = json_serialize_to_string(response_root);
-    msglog(DEBUG, "Response: %s", response);
+    msglog(DEBUG, 
+        "Response[%s:%d -> %s:%d]:\n- %32s%s", 
+        peer_info->client_addr, peer_info->client_port,
+        peer_info->server_addr, peer_info->server_port,
+        "", response
+    );
     send_message(fd, response, strlen(response), 0);
     json_free_serialized_string(response);
     json_value_free(response_root);
 }
 
 
-void node_server_callback(int fd, uchar *request) {
+void node_server_callback(int fd, uchar *request, PeerInfo *peer_info) {
     if (strlen(request) != 0) {
         msglog(DEBUG, 
-            "[%s:%d -> %s:%d] Request: %s", 
-            request
+            "Request[%s:%d -> %s:%d]:\n- %32s%s", 
+            peer_info->client_addr, peer_info->client_port,
+            peer_info->server_addr, peer_info->server_port,
+            "", request
         );
-        // msglog(DEBUG, 
-        //     "[%s:%d -> %s:%d] Request: %s", 
-        //     peer_info->client_addr,
-        //     peer_info->client_port,
-        //     peer_info->server_addr,
-        //     peer_info->server_port,
-        //     request
-        // );
         JSON_Value *request_value = json_parse_string(request);
         JSON_Object *request_json = json_value_get_object(request_value);
         if (json_object_has_value(request_json, "method")) {
@@ -199,7 +203,7 @@ void node_server_callback(int fd, uchar *request) {
             if (!strncmp(method, GEONSP_MSG_GET_VERSION, strlen(GEONSP_MSG_GET_VERSION))) {
                 uchar version[128];
                 snprintf(version, sizeof(version), "GeoNS v%s %s", GEONS_VERSION, COMPILE_TIME);
-                server_proto_response(fd, 1, version);
+                server_proto_response(fd, 1, version, peer_info);
             }
             else if (!strncmp(method, GEONSP_MSG_GET_NODES, strlen(GEONSP_MSG_GET_NODES))) {
                 Database *local_db = db_open(LOCAL_DB);
@@ -225,11 +229,11 @@ void node_server_callback(int fd, uchar *request) {
                             break;
                     }
                     db_disconnect(local_db);
-                    server_proto_data_response(fd, 1, "Successfully fetched list of nodes.", json_value);
+                    server_proto_data_response(fd, 1, "Successfully fetched list of nodes.", json_value, peer_info);
                     // json_value_free(json_value);
                 }
                 else
-                    server_proto_response(fd, 0, "Failed fetching nodes from database");
+                    server_proto_response(fd, 0, "Failed fetching nodes from database", peer_info);
             }
             else if (!strncmp(method, GEONSP_MSG_ADD_NODE, strlen(GEONSP_MSG_ADD_NODE))) {
                 uchar *server_addr = (uchar *) json_object_dotget_string(request_json, "data.server_addr");
@@ -241,23 +245,23 @@ void node_server_callback(int fd, uchar *request) {
                 db_disconnect(local_db);
 
                 if (!insert_node)
-                    server_proto_response(fd, 0, "There was a db error inserting new node.");
+                    server_proto_response(fd, 0, "There was a db error inserting new node.", peer_info);
                 else if (insert_node == 2)
-                    server_proto_response(fd, 0, "This node has been already added.");
+                    server_proto_response(fd, 0, "This node has been already added.", peer_info);
                 else {
-                    server_proto_response(fd, 1, "New node added into database.");
+                    server_proto_response(fd, 1, "New node added into database.", peer_info);
                     // TODO: Consider sharing new node's info into network
                 }
             }
             else
-                server_proto_response(fd, 0, "GEONSP: Invalid protocol method.");
+                server_proto_response(fd, 0, "GEONSP: Invalid protocol method.", peer_info);
             
             json_value_free(request_value);
             return;
         }
         json_value_free(request_value);
-        server_proto_response(fd, 0, "GEONSP: Invalid protocol message.");
+        server_proto_response(fd, 0, "GEONSP: Invalid protocol message.", peer_info);
         return;
     }
-    server_proto_response(fd, 0, "GEONSP: Empty protocol message.");
+    server_proto_response(fd, 0, "GEONSP: Empty protocol message.", peer_info);
 }

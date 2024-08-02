@@ -12,6 +12,18 @@
 #include "../core/core.h"
 
 
+typedef struct sPeerInfo
+{
+    uchar server_addr[MAX_IPV6_LENGTH];
+    ushort server_port;
+    uchar client_addr[MAX_IPV6_LENGTH];
+    ushort client_port;
+} PeerInfo;
+
+
+typedef void (ServerCallback)(int fd, uchar *request, PeerInfo *peer_info);
+
+
 typedef enum eConnectionStatus 
 {
     NOT_CONNECTED,
@@ -25,6 +37,7 @@ typedef struct sSocketConnection
     int fd;
     struct sSocketConnection *next;
     enum eConnectionStatus connection_status;
+    struct sPeerInfo peer_info;
 } SocketConnection;
 
 
@@ -41,23 +54,11 @@ typedef struct sSocketServer
 } SocketServer;
 
 
-// TODO: should be implemented
-typedef struct sPeerInfo
-{
-    uchar server_addr[MAX_IPV6_LENGTH];
-    ushort server_port;
-    uchar client_addr[MAX_IPV6_LENGTH];
-    ushort client_port;
-} PeerInfo;
-
-
-
 typedef struct sClientData
 {
     SocketConnection **head;
     SocketConnection *current;
     ServerCallback *callback;
-    PeerInfo peer_info;
 } ClientData;
 
 

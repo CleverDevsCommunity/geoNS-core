@@ -75,24 +75,25 @@ GeoNSServer *create_geons_server() {
     msglog(DEBUG, "Creating geoNS server.");
     GeoNSServer *server = (GeoNSServer *) malloc(sizeof(GeoNSServer));
 
-    server->ledger_db = db_open(LEDGER_DB);
-    server->local_db = db_open(LOCAL_DB);
-
-    // creating node socket server
-    server->node_gateway_server = open_server_socket(CONFIG->geons_server_addr, CONFIG->node_gateway_port);
-    handle_server_socket(server->node_gateway_server);
-
-    // creating data socket server
-    // server->data_gateway_server = open_server_socket(CONFIG->geons_server_addr, CONFIG->data_gateway_port);
-    // handle_server_socket(server->data_gateway_server);
-
-    // TODO: setting up client API
-    // .....
 
     msglog(DEBUG, "Starting decentralization communication.");
     // initializing decentralization
     if (connect_init_node_servers()) {
         msglog(DEBUG, "Decentralization communication success.");
+
+        server->ledger_db = db_open(LEDGER_DB);
+        server->local_db = db_open(LOCAL_DB);
+
+        // creating node socket server
+        server->node_gateway_server = open_server_socket(CONFIG->geons_server_addr, CONFIG->node_gateway_port);
+        handle_server_socket(server->node_gateway_server);
+
+        // creating data socket server
+        // server->data_gateway_server = open_server_socket(CONFIG->geons_server_addr, CONFIG->data_gateway_port);
+        // handle_server_socket(server->data_gateway_server);
+
+        // TODO: setting up client API
+        // .....
 
         // connecting databases
         db_connect(server->ledger_db);

@@ -8,6 +8,5 @@ typedef unsigned short              ushort;
 typedef unsigned char               uchar;
 typedef unsigned long               ulong;
 typedef pthread_t                   thread;
-typedef void                        (ServerCallback)(int fd, uchar *request);
 
 #endif // !GEONS_TYPE_H

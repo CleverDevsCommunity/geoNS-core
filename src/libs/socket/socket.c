@@ -101,16 +101,22 @@ void *server_socket_thread(void *arg) {
         }
         
         connection->connection_status = CONNECTION_ESTABLISHED;
-        msglog(DEBUG, "New connection accepted on %s:%d", server->server_addr, server->port);
 
         ClientData *client_data = (ClientData *) malloc(sizeof(ClientData));
-        client_data->head = &server->connections;
-        client_data->current = connection;
         client_data->callback = &node_server_callback;
-        strncpy(client_data->peer_info.server_addr, server->server_addr, MAX_IPV6_LENGTH);
-        client_data->peer_info.server_port = server->port;
-        strncpy(client_data->peer_info.client_addr, inet_ntoa(server->address.sin_addr), MAX_IPV6_LENGTH);
-        client_data->peer_info.client_port = ntohs(server->address.sin_port);
+        client_data->head = &server->connections;
+        strncpy(connection->peer_info.server_addr, server->server_addr, MAX_IPV6_LENGTH);
+        connection->peer_info.server_port = server->port;
+        strncpy(connection->peer_info.client_addr, inet_ntoa(server->address.sin_addr), MAX_IPV6_LENGTH);
+        connection->peer_info.client_port = ntohs(server->address.sin_port);
+        client_data->current = connection;
+
+
+        msglog(DEBUG, 
+            "Client %s:%d accepted by %s:%d", 
+            connection->peer_info.client_addr, connection->peer_info.client_port,
+            server->server_addr, server->port
+        );
 
 
         if (pthread_create(&thread_id, NULL, handle_client, (void *)&client_data) != 0) {
@@ -186,9 +192,15 @@ void kill_socket_server(SocketServer *server) {
         SocketConnection *current = server->connections;
         while (current != NULL) {
             SocketConnection *previous = current;
+            ConnectionStatus connection_status = previous->connection_status;
+            PeerInfo peer_info = previous->peer_info;
             current = current->next;
-            if (remove_connection(&server->connections, previous))
-                msglog(DEBUG, "%s:%d removed a connection.", server->server_addr, server->port);
+            if (remove_connection(&server->connections, previous) && connection_status == CONNECTION_ESTABLISHED)
+                msglog(DEBUG, 
+                    "[%s:%d x-x %s:%d] connection removed.", 
+                    server->server_addr, server->port,
+                    peer_info.client_addr, peer_info.client_port
+                );
         }
         kill_socket(server->fd);
         free(server->server_addr);
@@ -208,7 +220,7 @@ void *handle_client(void *arg) {
     SocketConnection **head = (*client_data)->head;
     SocketConnection *connection = (*client_data)->current;
     ServerCallback *callback = (*client_data)->callback;
-    PeerInfo peer_info = (*client_data)->peer_info;
+    PeerInfo peer_info = connection->peer_info;
     free(*client_data);
     *client_data = NULL;
 
@@ -218,7 +230,7 @@ void *handle_client(void *arg) {
 
     while ((message_length = read(client_socket, buffer, SOCKET_MAX_BUFFER_SIZE)) > 0) {
         buffer[message_length] = '\0';
-        callback(client_socket, buffer);
+        callback(client_socket, buffer, &peer_info);
     }
 
     msglog(DEBUG, "Client %s:%d disconnected from %s:%d", 
