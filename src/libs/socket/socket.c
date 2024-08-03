@@ -166,7 +166,6 @@ SocketServer *open_server_socket(uchar *server_addr, ushort port) {
 
     // Bind the socket to the network address and port
     server->address.sin_family = AF_INET;
-    server->address.sin_addr.s_addr = INADDR_ANY;
     server->address.sin_port = htons(server->port);
 
     if (bind(server->fd, (struct sockaddr *)&server->address, sizeof(server->address)) < 0) {

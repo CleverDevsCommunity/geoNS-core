@@ -10,7 +10,7 @@
 #define SYS_MAX_PATH_LENGTH                     1024
 
 // Socket constants
-#define DEFAULT_GEONS_SERVER_ADDR               "192.168.1.164"
+#define DEFAULT_GEONS_SERVER_ADDR               "127.0.0.1"
 #define DEFAULT_NODE_GATEWAY_PORT               9060
 #define DEFAULT_DATA_GATEWAY_PORT               6090
 #define SOCKET_MAX_BUFFER_SIZE                  4096
