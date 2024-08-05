@@ -1,7 +1,7 @@
 #include "io.h"
 
 
-uchar cwd[SYS_MAX_PATH_LENGTH];
+uchar cwd[MAX_SYS_PATH_LENGTH];
 
 
 uchar is_file_exist(uchar *file_path) {
@@ -45,23 +45,23 @@ uchar is_sproc_exists(void) {
 void init_io_system(const char *exec_path) {
     if (is_sproc_exists()) {
         #if OS_LINUX == 1
-        readlink("/proc/self/exe", cwd, SYS_MAX_PATH_LENGTH);
+        readlink("/proc/self/exe", cwd, MAX_SYS_PATH_LENGTH);
         #elif OS_FREE_BSD == 1
-        readlink("/proc/curproc/file", cwd, SYS_MAX_PATH_LENGTH);
+        readlink("/proc/curproc/file", cwd, MAX_SYS_PATH_LENGTH);
         #elif OS_SOLARIS == 1
-        readlink("/proc/self/path/a.out", cwd, SYS_MAX_PATH_LENGTH);
+        readlink("/proc/self/path/a.out", cwd, MAX_SYS_PATH_LENGTH);
         #endif
     }
     else {
         if (exec_path[0] == '/') {
-            strncpy(cwd, exec_path, SYS_MAX_PATH_LENGTH);
+            strncpy(cwd, exec_path, MAX_SYS_PATH_LENGTH);
         }
         else if (strchr(exec_path, '/') != NULL) {
             #if OS_WINDOWS == 1
             // TODO: coding windows version of path handling
             #else
             if (getcwd(cwd, sizeof(cwd)) != NULL) {
-                strncat(cwd, exec_path + 1, SYS_MAX_PATH_LENGTH - 1);
+                strncat(cwd, exec_path + 1, MAX_SYS_PATH_LENGTH - 1);
             }
             #endif
         }

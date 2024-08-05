@@ -1,7 +1,7 @@
 #include "config.h"
 
 
-uchar CONFIG_FILE_PATH[SYS_MAX_PATH_LENGTH] = {0};
+uchar CONFIG_FILE_PATH[MAX_SYS_PATH_LENGTH] = {0};
 Config *CONFIG = NULL;
 
 
@@ -53,8 +53,8 @@ uchar is_valid_config(uchar *config_file_path) {
         return 0;
 
     FILE *json_file = fopen(config_file_path, "r");
-    uchar *buffer = (uchar *) malloc(CONFIG_FILE_MAX_CONTENT);
-    fread(buffer, CONFIG_FILE_MAX_CONTENT - 1, 1, json_file);
+    uchar *buffer = (uchar *) malloc(MAX_CONFIG_FILE_CONTENT);
+    fread(buffer, MAX_CONFIG_FILE_CONTENT - 1, 1, json_file);
     fclose(json_file);
 
     JSON_Value *template_json_value = get_default_config(1);
@@ -96,8 +96,8 @@ JSON_Value *get_config(uchar *key) {
         return NULL;
 
     FILE *json_file = fopen(CONFIG_FILE_PATH, "r");
-    uchar *buffer = (uchar *) malloc(CONFIG_FILE_MAX_CONTENT);
-    fread(buffer, CONFIG_FILE_MAX_CONTENT - 1, 1, json_file);
+    uchar *buffer = (uchar *) malloc(MAX_CONFIG_FILE_CONTENT);
+    fread(buffer, MAX_CONFIG_FILE_CONTENT - 1, 1, json_file);
     fclose(json_file);
 
     

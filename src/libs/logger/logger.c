@@ -13,7 +13,7 @@ void init_logger(void) {
 
 void msglog(LogType type, uchar *message, ...) {
     if ((type == DEBUG && is_debugging) || (type != DEBUG)) {
-        uchar log_file_path[SYS_MAX_PATH_LENGTH];
+        uchar log_file_path[MAX_SYS_PATH_LENGTH];
         get_cwd_path(log_file_path, sizeof(log_file_path));
         strncat(log_file_path, "logs/", sizeof(log_file_path) - 1);
 

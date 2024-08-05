@@ -7,13 +7,13 @@
 #define MAX_SQL_QUERY_SIZE                      1024
 
 // System constants
-#define SYS_MAX_PATH_LENGTH                     1024
+#define MAX_SYS_PATH_LENGTH                     1024
 
 // Socket constants
-#define DEFAULT_GEONS_SERVER_ADDR               "127.0.0.1"
+#define DEFAULT_GEONS_SERVER_ADDR               "0.0.0.0"
 #define DEFAULT_NODE_GATEWAY_PORT               9060
 #define DEFAULT_DATA_GATEWAY_PORT               6090
-#define SOCKET_MAX_BUFFER_SIZE                  4096
+#define MAX_SOCKET_BUFFER_SIZE                  4096
 #define MAX_IPV6_LENGTH                         39
 #define MAX_SOCKET_METHOD_NAME                  64
 
@@ -28,6 +28,6 @@
 
 // Config manager constants
 #define CONFIG_FILE_NAME                        "config.json"
-#define CONFIG_FILE_MAX_CONTENT                 4096
+#define MAX_CONFIG_FILE_CONTENT                 4096
 
 #endif // !GEONS_CONSTANTS_H

@@ -15,7 +15,7 @@ uchar handle_node_info_exchange(Database *db, Node *source_node, Node *destinati
             destination_node->node_gateway
         );
         if (server != NULL) {
-            uchar buffer[SOCKET_MAX_BUFFER_SIZE];
+            uchar buffer[MAX_SOCKET_BUFFER_SIZE];
             JSON_Value *request = construct_add_node_request(
                 source_node->server_addr,
                 source_node->node_gateway,
@@ -118,13 +118,13 @@ SocketServer *is_geons_host_available(uchar *server_addr, ushort node_gateway) {
     ushort is_geons_port_open = server != NULL;
 
     if (is_host_available && is_geons_port_open) {
-        uchar buffer[SOCKET_MAX_BUFFER_SIZE] = {0};
+        uchar buffer[MAX_SOCKET_BUFFER_SIZE] = {0};
 
         send_message(server->fd, client_hello, strlen(client_hello), 0);
         json_free_serialized_string(client_hello);
         json_value_free(json_value);
         
-        int message_length = recv_message(server->fd, buffer, SOCKET_MAX_BUFFER_SIZE, 0);
+        int message_length = recv_message(server->fd, buffer, MAX_SOCKET_BUFFER_SIZE, 0);
         buffer[message_length] = '\0';
         JSON_Value *response_value = json_parse_string(buffer);
         JSON_Object *response_json = json_value_get_object(response_value);

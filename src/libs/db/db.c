@@ -33,7 +33,7 @@ void db_init(Database *db) {
 
 
 void db_connect(Database *db) {
-    uchar db_path[SYS_MAX_PATH_LENGTH];
+    uchar db_path[MAX_SYS_PATH_LENGTH];
     get_cwd_path(db_path, sizeof(db_path));
     strncat(db_path, db->db_name, sizeof(db_path) - 1);
 

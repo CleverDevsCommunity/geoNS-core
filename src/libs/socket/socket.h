@@ -33,7 +33,7 @@ typedef enum eConnectionStatus
 
 typedef struct sSocketConnection
 {
-    uchar buffer[SOCKET_MAX_BUFFER_SIZE];
+    uchar buffer[MAX_SOCKET_BUFFER_SIZE];
     int fd;
     struct sSocketConnection *next;
     enum eConnectionStatus connection_status;

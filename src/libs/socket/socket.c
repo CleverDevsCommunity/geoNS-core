@@ -227,7 +227,7 @@ void *handle_client(void *arg) {
     char *buffer = connection->buffer;
     int message_length;
 
-    while ((message_length = read(client_socket, buffer, SOCKET_MAX_BUFFER_SIZE)) > 0) {
+    while ((message_length = read(client_socket, buffer, MAX_SOCKET_BUFFER_SIZE)) > 0) {
         buffer[message_length] = '\0';
         callback(client_socket, buffer, &peer_info);
     }

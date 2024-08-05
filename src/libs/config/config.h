@@ -23,7 +23,7 @@ typedef struct sConfig
 } Config;
 
 
-extern uchar CONFIG_FILE_PATH[SYS_MAX_PATH_LENGTH];
+extern uchar CONFIG_FILE_PATH[MAX_SYS_PATH_LENGTH];
 extern Config *CONFIG;
 
 void release_config(void);
