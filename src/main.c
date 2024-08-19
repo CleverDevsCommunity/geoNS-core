@@ -3,6 +3,7 @@
 #include "libs/argparse/argparse.h"
 #include "libs/logger/logger.h"
 #include "libs/config/config.h"
+#include "libs/http/http.h"
 
 
 static const char *const usages[] = {
@@ -41,9 +42,19 @@ int main(int argc, const char *argv[]) {
 
     if (server != -1) {
         //* Running Server
-        GeoNSServer *server = create_geons_server();
-        sleep(15); //? MemCheck: killing the server after some seconds
-        kill_geons_server(server);
+        HTTPServer *server = create_http_server("0.0.0.0", 8000, "./");
+        if (server != NULL) {
+            handle_server_socket(server->socket_server, &http_server_callback);
+            sleep(60);
+            kill_http_server(server);
+        }
+
+
+        // GeoNSServer *server = create_geons_server();
+        // if (server != NULL) {
+        //     sleep(15); //? MemCheck: killing the server after some seconds
+        //     kill_geons_server(server);
+        // }
     }
     else {
         // TODO:

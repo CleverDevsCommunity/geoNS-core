@@ -90,7 +90,7 @@ void *server_socket_thread(void *arg) {
     thread thread_id;
 
     while (server->is_alive) {
-        SocketConnection *connection = (SocketConnection *) malloc(sizeof(SocketConnection));
+        SocketConnection *connection = (SocketConnection *) memalloc(sizeof(SocketConnection));
         connection->connection_status = NOT_CONNECTED;
         add_connection(&server->connections, connection);
 
@@ -102,8 +102,8 @@ void *server_socket_thread(void *arg) {
         
         connection->connection_status = CONNECTION_ESTABLISHED;
 
-        ClientData *client_data = (ClientData *) malloc(sizeof(ClientData));
-        client_data->callback = &node_server_callback;
+        ClientData *client_data = (ClientData *) memalloc(sizeof(ClientData));
+        client_data->server_callback = server->callback;
         client_data->head = &server->connections;
         strncpy(connection->peer_info.server_addr, server->server_addr, MAX_IPV6_LENGTH);
         connection->peer_info.server_port = server->port;
@@ -131,8 +131,9 @@ void *server_socket_thread(void *arg) {
 }
 
 
-void handle_server_socket(SocketServer *server) {
+void handle_server_socket(SocketServer *server, ServerCallback *server_callback) {
     server->is_alive = 1;
+    server->callback = server_callback;
     if (pthread_create(&server->thread, NULL, server_socket_thread, (void *)server) != 0) {
         msglog(ERROR, "%s:%d failed on creating thread to handle client connections", server->server_addr, server->port);
         kill_socket_server(server);
@@ -143,8 +144,8 @@ void handle_server_socket(SocketServer *server) {
 
 
 SocketServer *open_server_socket(uchar *server_addr, ushort port) {
-    SocketServer *server = (SocketServer *) malloc(sizeof(SocketServer));
-    server->server_addr = (uchar *) malloc(strlen(server_addr));
+    SocketServer *server = (SocketServer *) memalloc(sizeof(SocketServer));
+    server->server_addr = (uchar *) memalloc(strlen(server_addr));
     strncpy(server->server_addr, server_addr, strlen(server_addr));
     server->addrlen = sizeof(server->address);
     server->port = port;
@@ -154,31 +155,40 @@ SocketServer *open_server_socket(uchar *server_addr, ushort port) {
     if ((server->fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         msglog(ERROR, "Failed to open socket on %s:%d", server->server_addr, server->port);
         kill_socket_server(server);
-        exit(EXIT_FAILURE);
+        return NULL;
     }
 
     // Convert IPv4 and IPv6 addresses from text to binary form
     if (inet_pton(AF_INET, server->server_addr, &server->address.sin_addr) <= 0) {
         msglog(ERROR, "Invalid address: Address %s:%d not supported", server->server_addr, server->port);
         kill_socket_server(server);
-        exit(EXIT_FAILURE);
+        return NULL;
     }
 
     // Bind the socket to the network address and port
     server->address.sin_family = AF_INET;
     server->address.sin_port = htons(server->port);
 
+    int reuse = 1;
+    if (setsockopt(server->fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuse, sizeof(reuse)) < 0)
+        perror("setsockopt(SO_REUSEADDR) failed");
+
+    #ifdef SO_REUSEPORT
+        if (setsockopt(server->fd, SOL_SOCKET, SO_REUSEPORT, (const char*)&reuse, sizeof(reuse)) < 0) 
+            perror("setsockopt(SO_REUSEPORT) failed");
+    #endif
+
     if (bind(server->fd, (struct sockaddr *)&server->address, sizeof(server->address)) < 0) {
-        msglog(ERROR, "Bind failed on %s:%d");
+        msglog(ERROR, "Bind failed on %s:%d", server->server_addr, server->port);
         kill_socket_server(server);
-        exit(EXIT_FAILURE);
+        return NULL;
     }
 
     // Listen for incoming connections
     if (listen(server->fd, 3) < 0) {
         msglog(ERROR, "Listen failed on %s:%d", server->server_addr, server->port);
         kill_socket_server(server);
-        exit(EXIT_FAILURE);
+        return NULL;
     }
 
     return server;
@@ -202,7 +212,8 @@ void kill_socket_server(SocketServer *server) {
                 );
         }
         kill_socket(server->fd);
-        free(server->server_addr);
+        if (server->server_addr != NULL)
+            free(server->server_addr);
         free(server);
         server = NULL;
     }
@@ -218,7 +229,7 @@ void *handle_client(void *arg) {
     ClientData **client_data = (ClientData **) arg;
     SocketConnection **head = (*client_data)->head;
     SocketConnection *connection = (*client_data)->current;
-    ServerCallback *callback = (*client_data)->callback;
+    ServerCallback *callback = (*client_data)->server_callback;
     PeerInfo peer_info = connection->peer_info;
     free(*client_data);
     *client_data = NULL;
@@ -235,16 +246,16 @@ void *handle_client(void *arg) {
     msglog(DEBUG, "Client %s:%d disconnected from %s:%d", 
         peer_info.client_addr, peer_info.client_port, 
         peer_info.server_addr, peer_info.server_port
-    );;
+    );
     remove_connection(head, connection);
     return NULL;
 }
 
 
 SocketServer *connect_to_socket_server(uchar *server_addr, ushort port) {
-    SocketServer *server = (SocketServer *) malloc(sizeof(SocketServer));
+    SocketServer *server = (SocketServer *) memalloc(sizeof(SocketServer));
     server->port = port;
-    server->server_addr = (uchar *) malloc(strlen(server_addr));
+    server->server_addr = (uchar *) memalloc(strlen(server_addr));
     strncpy(server->server_addr, server_addr, strlen(server_addr));
     server->fd = 0;
     server->connections = NULL;

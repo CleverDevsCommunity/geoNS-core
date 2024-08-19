@@ -16,12 +16,14 @@
 #endif
 
 #include <sys/stat.h>
-#include "../core/types.h"
-#include "../core/constants.h"
+#include "../core/core.h"
 
 
 extern uchar cwd[MAX_SYS_PATH_LENGTH];
 
+uchar* exec(uchar* format, ...);
+char is_directory_path(uchar *path);
+uchar is_absolute_path(uchar *path);
 uchar is_file_exist(uchar *file_path);
 ulong get_file_size(uchar *file_path);
 void get_cwd_path(uchar *file_path, ushort size_of_file_path);

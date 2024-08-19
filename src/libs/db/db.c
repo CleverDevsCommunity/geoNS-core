@@ -4,7 +4,7 @@
 
 Database *db_open(uchar *db_name) {
     sqlite3 *sqlite_db;
-    Database *db = (Database *) malloc(sizeof(Database));
+    Database *db = (Database *) memalloc(sizeof(Database));
     db->db_name = db_name;
     db->is_ledger = !strncmp(db_name, LEDGER_DB, strlen(db_name));
     db->sqlite_db = sqlite_db;

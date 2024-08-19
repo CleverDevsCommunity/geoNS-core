@@ -9,10 +9,14 @@
 #define GEONS_VERSION TOSTRING(GEONS_MAJOR_VERSION) "." TOSTRING(GEONS_MINOR_VERSION) "." TOSTRING(GEONS_PATCH_VERSION)
 #define COMPILE_TIME __DATE__ ", " __TIME__
 
+#include <stdio.h>
+#include <stdlib.h>
 #include "constants.h"
 #include "globals.h"
 #include "types.h"
 
 extern uchar is_debugging;
+
+void *memalloc(size_t size);
 
 #endif // !GEONS_CORE_H

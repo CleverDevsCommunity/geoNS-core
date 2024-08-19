@@ -88,7 +88,7 @@ char get_all_active_nodes(Database *db, Node **nodes, uchar size_of_nodes) {
         ushort node_gateway = sqlite3_column_int(stmt, 2);
         ushort data_gateway = sqlite3_column_int(stmt, 3);
         uchar *status = (uchar *) sqlite3_column_text(stmt, 4);
-        Node *node = (Node *) malloc(sizeof(Node));
+        Node *node = (Node *) memalloc(sizeof(Node));
         strncpy(node->server_addr, server_addr, sizeof(node->server_addr));
         strncpy(node->status, status, sizeof(node->status));
         node->id = id;

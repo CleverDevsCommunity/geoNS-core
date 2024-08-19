@@ -5,7 +5,7 @@
 
 
 Node INIT_NODES[] = {
-    {0, "192.168.124.16", DEFAULT_NODE_GATEWAY_PORT, DEFAULT_DATA_GATEWAY_PORT, "active"}
+    {0, "10.3.0.30", DEFAULT_NODE_GATEWAY_PORT, DEFAULT_DATA_GATEWAY_PORT, "active"}
 };
 
 
@@ -73,7 +73,7 @@ uchar connect_init_node_servers() {
 
 GeoNSServer *create_geons_server() {
     msglog(DEBUG, "Creating geoNS server.");
-    GeoNSServer *server = (GeoNSServer *) malloc(sizeof(GeoNSServer));
+    GeoNSServer *server = (GeoNSServer *) memalloc(sizeof(GeoNSServer));
 
 
     msglog(DEBUG, "Starting decentralization communication.");
@@ -86,21 +86,30 @@ GeoNSServer *create_geons_server() {
 
         // creating node socket server
         server->node_gateway_server = open_server_socket(CONFIG->geons_server_addr, CONFIG->node_gateway_port);
-        handle_server_socket(server->node_gateway_server);
+        if (server->node_gateway_server != NULL) {
+            handle_server_socket(server->node_gateway_server, &node_server_callback);
 
-        // creating data socket server
-        // server->data_gateway_server = open_server_socket(CONFIG->geons_server_addr, CONFIG->data_gateway_port);
-        // handle_server_socket(server->data_gateway_server);
+            // creating data socket server
+            // server->data_gateway_server = open_server_socket(CONFIG->geons_server_addr, CONFIG->data_gateway_port);
+            // handle_server_socket(server->data_gateway_server);
 
-        // TODO: setting up client API
-        // .....
+            // TODO: setting up client API
+            // .....
 
-        // connecting databases
-        db_connect(server->ledger_db);
-        db_connect(server->local_db);
+            // connecting databases
+            db_connect(server->ledger_db);
+            db_connect(server->local_db);
 
-        printf("geoNS-Core is now running.\n");
-        return server;
+            printf("geoNS-Core is now running.\n");
+            return server;   
+        }
+
+        msglog(ERROR, "Creating node server failed on %s:%d", CONFIG->geons_server_addr, CONFIG->node_gateway_port);
+        printf("Failed to run server.\n\t- Reason: Wrong db type.\n");
+        free(server->local_db);
+        free(server->ledger_db);
+        kill_geons_server(server);
+        return NULL;
     }
     msglog(ERROR, "Decentralization communication failed.");
     printf("Failed to run server.\n\t- Reason: Wrong db type.\n");

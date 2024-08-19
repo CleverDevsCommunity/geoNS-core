@@ -112,9 +112,16 @@ SocketServer *is_geons_host_available(uchar *server_addr, ushort node_gateway) {
     JSON_Value *json_value = construct_client_hello_request();
     uchar *client_hello = json_serialize_to_string(json_value);
     snprintf(command, sizeof(command), "ping -c 1 %s > /dev/null 2>&1", server_addr);
-    SocketServer *server = connect_to_socket_server(server_addr, node_gateway);
-
     ushort is_host_available = !system(command);
+
+    if (!is_host_available) {
+        msglog(ERROR, "Init node %s is down or can't be observed.", server_addr);
+        json_free_serialized_string(client_hello);
+        json_value_free(json_value);
+        return NULL;
+    }
+
+    SocketServer *server = connect_to_socket_server(server_addr, node_gateway);
     ushort is_geons_port_open = server != NULL;
 
     if (is_host_available && is_geons_port_open) {

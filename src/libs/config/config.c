@@ -14,7 +14,7 @@ void release_config(void) {
 
 
 void load_config(void) {
-    CONFIG = (Config *) malloc(sizeof(Config));
+    CONFIG = (Config *) memalloc(sizeof(Config));
 
     JSON_Value *config = get_config("");
     JSON_Object *config_json_object = json_value_get_object(config);
@@ -53,7 +53,7 @@ uchar is_valid_config(uchar *config_file_path) {
         return 0;
 
     FILE *json_file = fopen(config_file_path, "r");
-    uchar *buffer = (uchar *) malloc(MAX_CONFIG_FILE_CONTENT);
+    uchar *buffer = (uchar *) memalloc(MAX_CONFIG_FILE_CONTENT);
     fread(buffer, MAX_CONFIG_FILE_CONTENT - 1, 1, json_file);
     fclose(json_file);
 
@@ -96,7 +96,7 @@ JSON_Value *get_config(uchar *key) {
         return NULL;
 
     FILE *json_file = fopen(CONFIG_FILE_PATH, "r");
-    uchar *buffer = (uchar *) malloc(MAX_CONFIG_FILE_CONTENT);
+    uchar *buffer = (uchar *) memalloc(MAX_CONFIG_FILE_CONTENT);
     fread(buffer, MAX_CONFIG_FILE_CONTENT - 1, 1, json_file);
     fclose(json_file);
 

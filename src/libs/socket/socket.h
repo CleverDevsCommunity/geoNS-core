@@ -51,6 +51,7 @@ typedef struct sSocketServer
     uchar *server_addr;
     uchar is_alive;
     thread thread;
+    ServerCallback *callback;
 } SocketServer;
 
 
@@ -58,7 +59,7 @@ typedef struct sClientData
 {
     SocketConnection **head;
     SocketConnection *current;
-    ServerCallback *callback;
+    ServerCallback *server_callback;
 } ClientData;
 
 
@@ -66,7 +67,7 @@ uchar is_my_ip(const uchar *ip);
 void add_connection(SocketConnection **head, SocketConnection *connection);
 uchar remove_connection(SocketConnection **head, SocketConnection *connection);
 SocketServer *open_server_socket(uchar *server, ushort port);
-void handle_server_socket(SocketServer *server);
+void handle_server_socket(SocketServer *server, ServerCallback *server_callback);
 void kill_socket(int fd);
 void kill_socket_server(SocketServer *server);
 void *handle_client(void *arg);

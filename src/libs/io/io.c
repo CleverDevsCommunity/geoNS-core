@@ -4,6 +4,62 @@
 uchar cwd[MAX_SYS_PATH_LENGTH];
 
 
+uchar* exec(uchar* format, ...) {
+    uchar* result = memalloc(MAX_SYS_OUTPUT_LENGTH);
+
+    va_list args;
+    va_start(args, format);
+    char command[MAX_SYS_COMMAND_LENGTH_PER_EXEC];
+    vsnprintf(command, sizeof(command), format, args);
+    va_end(args);
+
+
+    FILE* pipe = popen(command, "r");
+    if (pipe == NULL) {
+        perror("popen");
+        free(result);
+        return NULL;
+    }
+
+    char buffer[MAX_SYS_OUTPUT_CHUNK_SIZE];
+    while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
+        strcat(result, buffer);
+    }
+
+    if (pclose(pipe) == -1) {
+        perror("pclose");
+        free(result);
+        return NULL;
+    }
+
+    return result;
+}
+
+
+uchar is_absolute_path(uchar *path) {
+    if (path == NULL) {
+        return 0;
+    }
+    
+    return path[0] == '/';
+}
+
+
+char is_directory_path(uchar *path) {
+    struct stat path_stat;
+
+    if (stat(path, &path_stat) != 0) {
+        return -1;
+    }
+
+    if (S_ISDIR(path_stat.st_mode)) {
+        return 1;
+    }
+
+    return 0;
+}
+
+
 uchar is_file_exist(uchar *file_path) {
     return !access(file_path, F_OK);
 }

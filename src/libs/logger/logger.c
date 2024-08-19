@@ -35,14 +35,15 @@ void msglog(LogType type, uchar *message, ...) {
         FILE *log_file = fopen(log_file_path, "a");
         
         if (log_file == NULL) {
-            perror("Failed to open log file.");
+            printf("path: %s\n", log_file_path);
+            printf("Failed to open log file.");
             return;
         }
 
         // Calculate necessary log size
         ssize_t size_of_message = strlen(buffer);
         ssize_t log_size = MAX_LOG_PRE_TEXT_LENGTH + size_of_message + 50; // Extra space for timestamp and log level
-        uchar *log_data = (uchar *)malloc(log_size);
+        uchar *log_data = (uchar *) memalloc(log_size);
         
         if (log_data == NULL) {
             perror("Failed to allocate memory for log data.");
@@ -54,7 +55,7 @@ void msglog(LogType type, uchar *message, ...) {
         time_t timer = time(NULL);
         struct tm *tm_info = localtime(&timer);
         uchar current_time[MAX_LOG_TIME_LENGTH];
-        strftime(current_time, sizeof(current_time), "%Y/%m/%d-%H:%M:%S", tm_info);
+        strftime(current_time, sizeof(current_time), "%Y/%m/%d - %H:%M:%S", tm_info);
 
         switch (type) {
             case DEBUG: log_char = 'D'; break;
